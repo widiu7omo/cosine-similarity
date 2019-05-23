@@ -1,0 +1,15 @@
+{
+    "name": "danarwidi/cosine-similarity",
+    "description": "Cosine Similarity method",
+    "type": "project",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Danar Widi",
+            "email": "widiu7omo@gmail.com"
+        }
+    ],
+    "require": {
+        "sastrawi/sastrawi": "^1.2"
+    }
+}
