@@ -43,13 +43,14 @@ require './preprocessing.php';
                 <table class="table table-hover table-inverse table-responsive">
                     <?php 
                         require './config.php';
-                        $sql = mysqli_query($connection, "SELECT * FROM tbjudul");
+                        $sql = mysqli_query($connection, "SELECT nama,judul,persen FROM tbjudul inner join tbcosine on tbjudul.id = tbcosine.idjudul");
                         ?>
                     <thead class="thead-inverse">
                         <tr>
                             <th>No</th>
                             <th>Nama Mahasiswa</th>
                             <th>Judul</th>
+                            <th>Kecocokan</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -60,9 +61,10 @@ require './preprocessing.php';
                             <td scope="row"><?php echo $i+1 ?></td>
                             <td><?php echo $row['nama'] ?></td>
                             <td><?php echo $row['judul'] ?></td>
+                            <td><?php echo $row['persen'] ?></td>
                         </tr>
                         <?php endwhile; 
-                        mysqli_close($conn);
+                            mysqli_close($conn);
                         ?>
                     </tbody>
                 </table>
@@ -70,13 +72,15 @@ require './preprocessing.php';
         </div>
     </div>
     <?php
+    //@TODO:Improve Algorithm, kecocokan
+    //Make better UX/UI
     if(isset($_POST['simpan'])){
         $q = $_POST['q'];
         $output = $stemmer->stem($q);
         $cosine = new Cosine;
         //Q akan mendapatkan nilai dari Q
         $cosine->Q($output);
-        echo "Anda mengajukan judul : ".$output;
+        echo "<h2 style='text-align:center'>Anda mengajukan judul : ".$output."</h2>";
         //Dn akan mendapatkan nilai dari D1...n
         $cosine->Dn();
         $cosine->Dfidf();
