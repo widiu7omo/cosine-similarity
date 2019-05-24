@@ -171,13 +171,32 @@ use Sastrawi\Stemmer\StemmerFactory;
             mysqli_query($connection, "TRUNCATE TABLE tbQidfpangkat");
             mysqli_query($connection, "TRUNCATE TABLE tbDnidfpangkat");
 
-            $sql = mysqli_query($connection,"SELECT idf,idtoken from tbdfidf");
-            $tbdfidf = [];
             $tbtoken = $this->ambilToken();
             $tbjudul = $this->ambilJudul();
+            $sql = mysqli_query($connection,"SELECT idf,idtoken from tbdfidf");
+            $tbdfidf = [];
             while($result = mysqli_fetch_assoc($sql)){
                 array_push($tbdfidf,$result);
             }
+
+            //tbq
+            $sql = mysqli_query($connection,"SELECT count,idtoken from tbq");
+            while($result = mysqli_fetch_assoc($sql)){
+                $countq[] = $result;
+            }
+            //mengalikan idf dengan Q
+            $countQIDF =[];
+            foreach($countq as $key=> $q){
+                //useless
+                $countQIDF[] =  (float)$tbdfidf[$key]['idf']*(float)$q['count'];
+                //menguadratkan hasil
+                $countQIDFKuadrat = pow((float)$tbdfidf[$key]['idf']*(float)$q['count'],2);
+                $query ="INSERT into tbQidfpangkat (idtoken,count) values($q[idtoken],$countQIDFKuadrat)";
+                mysqli_query($connection,$query) or die(mysqli_error($connection));
+            }
+            //Panjang Q selalu satu, karena dia Q. object keywordnya
+            // var_dump($countQIDF);
+
             //cuman ambil idfnya saja
             // var_dump($tbdfidf);
             foreach($tbjudul as $judul){
@@ -185,26 +204,11 @@ use Sastrawi\Stemmer\StemmerFactory;
                     //tbdn
                     $countdn = [];
                     $countq = [];
-                    $sql = mysqli_query($connection,"SELECT count from tbdn where idtoken = $token[id]");
+                    $sql = mysqli_query($connection,"SELECT count from tbdn where idtoken = $token[id] and idjudul = $judul[id]");
                     while($result = mysqli_fetch_assoc($sql)){
                         $countdn[] = $result;
                     }
-                    //tbq
-                    $sql = mysqli_query($connection,"SELECT count from tbq where idtoken = $token[id]");
-                    while($result = mysqli_fetch_assoc($sql)){
-                        $countq[] = $result;
-                    }
-                    //mengalikan idf dengan Q
-                    $countQIDF =[];
-                    foreach($countq as $q){
-                        //useless
-                        $countQIDF[] =  (float)$tbdfidf[$key]['idf']*(float)$q['count'];
-                        //menguadratkan hasil
-                        $countQIDFKuadrat = pow((float)$tbdfidf[$key]['idf']*(float)$q['count'],2);
-                        mysqli_query($connection,"INSERT into tbQidfpangkat (idtoken,count) values($token[id],$countQIDFKuadrat)") or die(mysqli_error($connection));
-                    }
-                    //Panjang Q selalu satu, karena dia Q. object keywordnya
-                    // var_dump($countQIDF);
+                    
 
                     //mengalikan idf dengan Dn
                     $countDnIDF = [];
@@ -219,7 +223,8 @@ use Sastrawi\Stemmer\StemmerFactory;
                     //Mengalikan masing2 Dnidf dengan Qidf
                     //Skalar D terhadap q
                     foreach($countDnIDF as $dnidf){
-                        $hasilDnIdfkaliQIdf = $countQIDF[0]*$dnidf;
+                        /////////////////ADA COUNTQIDF
+                        $hasilDnIdfkaliQIdf = $countQIDF[$key]*$dnidf;
                         $sql = mysqli_query($connection,"INSERT into tbDidfkaliQidf (idtoken,idjudul,count) values($token[id],$judul[id],$hasilDnIdfkaliQIdf)") or die(mysqli_error($connection));
                     }
                 }
@@ -228,10 +233,10 @@ use Sastrawi\Stemmer\StemmerFactory;
 
         public function similarity(){
             require 'config.php';
+            mysqli_query($connection, "TRUNCATE TABLE tbcosine");
             
             //ambil data Judul
             $tbjudul = $this->ambilJudul();
-            $jumlahDn_kali_byJudul = [];
             $jumlahDn_pangkat_byJudul = [];
             $jumlahQ_pangkat_byJudul = 0;
 
@@ -256,7 +261,7 @@ use Sastrawi\Stemmer\StemmerFactory;
                 foreach($tbDidfkaliQidf as $kali){
                     $hasilDkaliQ +=$kali['count'];
                 }
-                array_push($jumlahDn_kali_byJudul,$hasilDkaliQ);
+                
                 //ambil data Dn terpangkat berdasarkan judul
                 $sql = mysqli_query($connection,"SELECT * FROM tbDnidfpangkat WHERE idjudul = $judul[id]");
                 $tbDnidfpangkat = [];
@@ -267,9 +272,11 @@ use Sastrawi\Stemmer\StemmerFactory;
                     $hasilDpangkat +=$Dpangkat['count'];
                 }
                 $sqrtDn = sqrt($hasilDpangkat);
-                $hasilAkhir = $hasilDkaliQ/($sqrtDn*$sqrtQ);
+                $hasilAkhir = $hasilDkaliQ/($sqrtQ*$sqrtDn);
                 $hasilPersen = $hasilAkhir*100;
-                $jumlahDn_pangkat_byJudul[$judul['judul']] = $hasilPersen.'%';
+                $persentase = $hasilPersen.'%';
+                var_dump($persentase);
+                mysqli_query($connection,"INSERT INTO tbcosine (idjudul,count,persen) values($judul[id],$hasilAkhir,'$persentase')") or die(mysqli_error($connection));
                 //cari akar dari pangkat tadi
 
                 // foreach($jumlahDn_pangkat_byJudul as $jumlah){
@@ -289,7 +296,8 @@ use Sastrawi\Stemmer\StemmerFactory;
                 // }
                 // var_dump($hasilAkhir);
             }
-            var_dump($jumlahDn_pangkat_byJudul);
+
+            // var_dump($jumlahDn_pangkat_byJudul);
             
 
             
