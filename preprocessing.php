@@ -24,6 +24,15 @@ use Sastrawi\Stemmer\StemmerFactory;
             }
             return $tbtoken;
         }
+        public function ambilJudul(){
+            require 'config.php';
+            $sql = mysqli_query($connection, "SELECT id,judul FROM tbjudul");
+            $tbjudul = [];
+            while ($result = mysqli_fetch_assoc($sql)){
+             array_push($tbjudul,$result);
+            }
+            return $tbjudul;
+        }
         public function Q($query){
                //connectionecting to database
                require 'config.php';
@@ -82,11 +91,13 @@ use Sastrawi\Stemmer\StemmerFactory;
 
         public function Dfidf(){
             require './config.php';
+            mysqli_query($connection, "TRUNCATE TABLE tbdfidf");
+
             //mencari n
             $sql = mysqli_query($connection,"SELECT count(*) as total FROM tbjudul");
             $count = mysqli_fetch_assoc($sql);
             $n = $count['total'];
-
+            //n dipakai di line 146
             //mencari tf
             $tbq = [];
             $tbdn = [];
@@ -109,6 +120,7 @@ use Sastrawi\Stemmer\StemmerFactory;
             foreach($tbq as $q){
                 array_push($tbdn,$q);
             }
+            //tf dengan id judul dan idtoken serta count
             $tf = $tbdn;
             // var_dump($tf);
 
@@ -119,32 +131,169 @@ use Sastrawi\Stemmer\StemmerFactory;
             }
             // var_dump($tbtoken);
             //gabung dn dan q berdasarkan token
+            $df = [];
             foreach($tbtoken as $token){
                 $sql = mysqli_query($connection,"SELECT * FROM tbq where idtoken = $token[id]");
+                $dfitem = [];
                 while($q = mysqli_fetch_assoc($sql)){
                 //idjudul q adalah q
                 $q['idjudul'] = 'Q';
                 // var_dump($q);
-                $df[$token['term']][] = $q['count'];
+                $dfitem[] = $q['count'];
                 // array_push($tbq,$q);
                 }
                 $sql = mysqli_query($connection,"SELECT * FROM tbdn where idtoken = $token[id]");
                 while($dn = mysqli_fetch_assoc($sql)){
                 //idjudul q adalah q
-                $df[$token['term']][] = $dn['count'];
+                $dfitem[] = $dn['count'];
                 // var_dump($dn);
                 // array_push($tbq,$q);
                 }
+                $count_df = 0;
+                foreach($dfitem as $item){
+                    $item!=0?$count_df++:0;
+                }
+                // var_dump($count_df);
+                //insert to db
+                //menghitung dfidf
+                $idf = log($n/$count_df)+1;
+                $idf = round($idf,10);
+                if(is_infinite($idf)){
+                    $idf = 0;
+                }
+                $sql = mysqli_query($connection,"insert into tbdfidf (idtoken,df,n,idf) values($token[id],$count_df,$n,$idf)") or die(mysqli_error($connection));
             }
-            var_dump($df);
-            $totaldf = [];
-            foreach($df as $hitungdf){
-                $hitungdf = 
+        }
+
+        public function Tfidf(){
+            require 'config.php';
+            mysqli_query($connection, "TRUNCATE TABLE tbDidfkaliQidf");
+            mysqli_query($connection, "TRUNCATE TABLE tbQidfpangkat");
+            mysqli_query($connection, "TRUNCATE TABLE tbDnidfpangkat");
+
+            $sql = mysqli_query($connection,"SELECT idf,idtoken from tbdfidf");
+            $tbdfidf = [];
+            $tbtoken = $this->ambilToken();
+            $tbjudul = $this->ambilJudul();
+            while($result = mysqli_fetch_assoc($sql)){
+                array_push($tbdfidf,$result);
             }
+            //cuman ambil idfnya saja
+            // var_dump($tbdfidf);
+            foreach($tbjudul as $judul){
+                foreach($tbtoken as $key=> $token){
+                    //tbdn
+                    $countdn = [];
+                    $countq = [];
+                    $sql = mysqli_query($connection,"SELECT count from tbdn where idtoken = $token[id]");
+                    while($result = mysqli_fetch_assoc($sql)){
+                        $countdn[] = $result;
+                    }
+                    //tbq
+                    $sql = mysqli_query($connection,"SELECT count from tbq where idtoken = $token[id]");
+                    while($result = mysqli_fetch_assoc($sql)){
+                        $countq[] = $result;
+                    }
+                    //mengalikan idf dengan Q
+                    $countQIDF =[];
+                    foreach($countq as $q){
+                        //useless
+                        $countQIDF[] =  (float)$tbdfidf[$key]['idf']*(float)$q['count'];
+                        //menguadratkan hasil
+                        $countQIDFKuadrat = pow((float)$tbdfidf[$key]['idf']*(float)$q['count'],2);
+                        mysqli_query($connection,"INSERT into tbQidfpangkat (idtoken,count) values($token[id],$countQIDFKuadrat)") or die(mysqli_error($connection));
+                    }
+                    //Panjang Q selalu satu, karena dia Q. object keywordnya
+                    // var_dump($countQIDF);
 
+                    //mengalikan idf dengan Dn
+                    $countDnIDF = [];
+                    foreach($countdn as $dn){
+                        $countDnIDF[] = (float)$tbdfidf[$key]['idf']*(float)$dn['count'];
+                        //menguadratkan hasil
+                        $countDnIDFKuadrat = pow((float)$tbdfidf[$key]['idf']*(float)$dn['count'],2);
+                        mysqli_query($connection,"INSERT into tbDnidfpangkat (idtoken,idjudul,count) values($token[id],$judul[id],$countDnIDFKuadrat)") or die(mysqli_error($connection));
+                    }
+                    // var_dump($countDnIDF);
 
+                    //Mengalikan masing2 Dnidf dengan Qidf
+                    //Skalar D terhadap q
+                    foreach($countDnIDF as $dnidf){
+                        $hasilDnIdfkaliQIdf = $countQIDF[0]*$dnidf;
+                        $sql = mysqli_query($connection,"INSERT into tbDidfkaliQidf (idtoken,idjudul,count) values($token[id],$judul[id],$hasilDnIdfkaliQIdf)") or die(mysqli_error($connection));
+                    }
+                }
+            }
+        }
 
+        public function similarity(){
+            require 'config.php';
+            
+            //ambil data Judul
+            $tbjudul = $this->ambilJudul();
+            $jumlahDn_kali_byJudul = [];
+            $jumlahDn_pangkat_byJudul = [];
+            $jumlahQ_pangkat_byJudul = 0;
 
+            //ambil data Q terpangkat, Q hanya satu, tidak perlu masuk perulangan
+            $sql = mysqli_query($connection,"SELECT * FROM tbQidfpangkat");
+            $tbQidfpangkat = [];
+            while($result = mysqli_fetch_assoc($sql)){
+                array_push($tbQidfpangkat,$result);
+            }
+            foreach($tbQidfpangkat as $Qpangkat){
+                $jumlahQ_pangkat_byJudul +=$Qpangkat['count'];
+            }
+            $sqrtQ = sqrt($jumlahQ_pangkat_byJudul);
+
+            foreach($tbjudul as $judul){
+                //ambil data DnkaliQ berdasarkan judul
+                $sql = mysqli_query($connection,"SELECT * FROM tbDidfkaliQidf WHERE idjudul = $judul[id]");
+                $tbDidfkaliQidf = [];
+                while($result = mysqli_fetch_assoc($sql)){
+                    array_push($tbDidfkaliQidf,$result);
+                }
+                foreach($tbDidfkaliQidf as $kali){
+                    $hasilDkaliQ +=$kali['count'];
+                }
+                array_push($jumlahDn_kali_byJudul,$hasilDkaliQ);
+                //ambil data Dn terpangkat berdasarkan judul
+                $sql = mysqli_query($connection,"SELECT * FROM tbDnidfpangkat WHERE idjudul = $judul[id]");
+                $tbDnidfpangkat = [];
+                while($result = mysqli_fetch_assoc($sql)){
+                    array_push($tbDnidfpangkat,$result);
+                }
+                foreach($tbDnidfpangkat as $Dpangkat){
+                    $hasilDpangkat +=$Dpangkat['count'];
+                }
+                $sqrtDn = sqrt($hasilDpangkat);
+                $hasilAkhir = $hasilDkaliQ/($sqrtDn*$sqrtQ);
+                $hasilPersen = $hasilAkhir*100;
+                $jumlahDn_pangkat_byJudul[$judul['judul']] = $hasilPersen.'%';
+                //cari akar dari pangkat tadi
+
+                // foreach($jumlahDn_pangkat_byJudul as $jumlah){
+                //     var_dump($jumlah);
+                //     // $sqrtDn[] = sqrt($jumlah[]);
+                // }
+                // // var_dump($jumlahQ_pangkat_byJudul);
+                // $sqrtQ = sqrt($jumlahQ_pangkat_byJudul);
+                // var_dump($sqrtDn);
+                // var_dump($sqrtQ);
+                // var_dump($jumlahDn_kali_byJudul);
+                // //rumus similarity = jumlahKaliDndanQ/(akar(jumlahpangkatDn)*akar(jumlahpangkatQ))
+                // $hasilAkhir = [];
+                // foreach($jumlahDn_kali_byJudul as $key=> $dnKali){
+                //     $hasil = $dnKali/($sqrtDn[$key]*$sqrtQ);
+                //     array_push($hasilAkhir,$hasil);
+                // }
+                // var_dump($hasilAkhir);
+            }
+            var_dump($jumlahDn_pangkat_byJudul);
+            
+
+            
+            
         }
         
         //initial nama to null

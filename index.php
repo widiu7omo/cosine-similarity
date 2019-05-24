@@ -76,9 +76,12 @@ require './preprocessing.php';
         $cosine = new Cosine;
         //Q akan mendapatkan nilai dari Q
         $cosine->Q($output);
+        echo "Anda mengajukan judul : ".$output;
         //Dn akan mendapatkan nilai dari D1...n
         $cosine->Dn();
         $cosine->Dfidf();
+        $cosine->Tfidf();
+        $cosine->similarity();
     }
 ?>
 
