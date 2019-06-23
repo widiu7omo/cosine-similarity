@@ -64,7 +64,7 @@ require './preprocessing.php';
                             <td><?php echo $row['persen'] ?></td>
                         </tr>
                         <?php endwhile; 
-                            mysqli_close($conn);
+                            mysqli_close($connection);
                         ?>
                     </tbody>
                 </table>

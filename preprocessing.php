@@ -156,7 +156,7 @@ use Sastrawi\Stemmer\StemmerFactory;
                 // var_dump($count_df);
                 //insert to db
                 //menghitung dfidf
-                $idf = log($n/$count_df)+1;
+                $idf = @(log($n/$count_df)+1);
                 $idf = round($idf,10);
                 if(is_infinite($idf)){
                     $idf = 0;
@@ -255,6 +255,7 @@ use Sastrawi\Stemmer\StemmerFactory;
                 //ambil data DnkaliQ berdasarkan judul
                 $sql = mysqli_query($connection,"SELECT * FROM tbDidfkaliQidf WHERE idjudul = $judul[id]");
                 $tbDidfkaliQidf = [];
+                $hasilDkaliQ =0;
                 while($result = mysqli_fetch_assoc($sql)){
                     array_push($tbDidfkaliQidf,$result);
                 }
@@ -265,6 +266,7 @@ use Sastrawi\Stemmer\StemmerFactory;
                 //ambil data Dn terpangkat berdasarkan judul
                 $sql = mysqli_query($connection,"SELECT * FROM tbDnidfpangkat WHERE idjudul = $judul[id]");
                 $tbDnidfpangkat = [];
+                $hasilDpangkat = 0;
                 while($result = mysqli_fetch_assoc($sql)){
                     array_push($tbDnidfpangkat,$result);
                 }
@@ -275,7 +277,7 @@ use Sastrawi\Stemmer\StemmerFactory;
                 $hasilAkhir = $hasilDkaliQ/($sqrtQ*$sqrtDn);
                 $hasilPersen = $hasilAkhir*100;
                 $persentase = $hasilPersen.'%';
-                var_dump($persentase);
+                // var_dump($persentase);
                 mysqli_query($connection,"INSERT INTO tbcosine (idjudul,count,persen) values($judul[id],$hasilAkhir,'$persentase')") or die(mysqli_error($connection));
                 //cari akar dari pangkat tadi
 
