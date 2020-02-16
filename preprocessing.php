@@ -99,6 +99,7 @@ use Sastrawi\Stemmer\StemmerFactory;
             $n = $count['total'];
             //n dipakai di line 146
             //mencari tf
+            $n=$n+1;
             $tbq = [];
             $tbdn = [];
             $tbtoken = [];
@@ -156,7 +157,7 @@ use Sastrawi\Stemmer\StemmerFactory;
                 // var_dump($count_df);
                 //insert to db
                 //menghitung dfidf
-                $idf = @(log($n/$count_df)+1);
+                $idf = @(log10($n/$count_df));
                 $idf = round($idf,10);
                 if(is_infinite($idf)){
                     $idf = 0;
