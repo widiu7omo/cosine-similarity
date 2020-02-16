@@ -162,6 +162,7 @@ use Sastrawi\Stemmer\StemmerFactory;
                 if(is_infinite($idf)){
                     $idf = 0;
                 }
+                
                 $sql = mysqli_query($connection,"insert into tbdfidf (idtoken,df,n,idf) values($token[id],$count_df,$n,$idf)") or die(mysqli_error($connection));
             }
         }
@@ -275,9 +276,17 @@ use Sastrawi\Stemmer\StemmerFactory;
                     $hasilDpangkat +=$Dpangkat['count'];
                 }
                 $sqrtDn = sqrt($hasilDpangkat);
-                $hasilAkhir = $hasilDkaliQ/($sqrtQ*$sqrtDn);
-                $hasilPersen = $hasilAkhir*100;
-                $persentase = $hasilPersen.'%';
+                $divider = $sqrtQ*$sqrtDn;
+                if($divider == 0){
+                    $hasilAkhir = 0;
+                    $hasilPersen = 0;
+                    $persentase = '0%';    
+                }
+                else{
+                    $hasilAkhir = $hasilDkaliQ/($divider);
+                    $hasilPersen = $hasilAkhir*100;
+                    $persentase = $hasilPersen.'%';    
+                }
                 // var_dump($persentase);
                 mysqli_query($connection,"INSERT INTO tbcosine (idjudul,count,persen) values($judul[id],$hasilAkhir,'$persentase')") or die(mysqli_error($connection));
                 //cari akar dari pangkat tadi
@@ -299,11 +308,7 @@ use Sastrawi\Stemmer\StemmerFactory;
                 // }
                 // var_dump($hasilAkhir);
             }
-
-            // var_dump($jumlahDn_pangkat_byJudul);
-            
-
-            
+  
             
         }
         
