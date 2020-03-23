@@ -33,6 +33,7 @@ use Sastrawi\Stemmer\StemmerFactory;
             }
             return $tbjudul;
         }
+        //purge it, and save it the array
         public function Q($query){
                //connectionecting to database
                require 'config.php';
@@ -59,7 +60,7 @@ use Sastrawi\Stemmer\StemmerFactory;
                //closing connectionection
                $connection -> close();
         }
-
+        //excute it only when admin submit judul master, each judul
         public function Dn(){
             require './config.php';
             $stemmerFactory = new StemmerFactory;
@@ -99,6 +100,7 @@ use Sastrawi\Stemmer\StemmerFactory;
             $n = $count['total'];
             //n dipakai di line 146
             //mencari tf
+            //+1 always, cz Query from client must be count too. 
             $n=$n+1;
             $tbq = [];
             $tbdn = [];

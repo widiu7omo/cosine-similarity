@@ -1,0 +1,17 @@
+Step of Cosine
+
+======DATA TRAIN=======
+
+insert to title table
+tokenize each title
+insert into token table to count how much each word are appeared (each title)
+
+======COMPARING TITLE========
+get judul from query
+extract word from sentence (tokenize)
+take tokens from token table
+looping tokens and insert default count value to 0
+if there's matching between token and query tokenized count will increase (Process Query)
+get all judul from datajudul and tokenize (Process Dn)
+
+
